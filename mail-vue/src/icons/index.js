@@ -694,4 +694,16 @@ addCollection({
         }
     }
 })
+addCollection({
+    "prefix": "flat-color-icons",
+    "lastModified": 1754899066,
+    "aliases": {},
+    "width": 48,
+    "height": 48,
+    "icons": {
+        "folder": {
+            "body": "<path fill=\"rgb(51, 126, 204)\" d=\"M40 12H22l-4-4H8c-2.2 0-4 1.8-4 4v8h40v-4c0-2.2-1.8-4-4-4\"/><path fill=\"#23C5F0\" d=\"M40 12H8c-2.2 0-4 1.8-4 4v20c0 2.2 1.8 4 4 4h32c2.2 0 4-1.8 4-4V16c0-2.2-1.8-4-4-4\"/>"
+        }
+    }
+})
 

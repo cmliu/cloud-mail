@@ -1,6 +1,6 @@
 <template>
   <div v-for="item in rows" style="background: var(--el-bg-color)">
-    <div class="email-row">
+    <div :class="'email-row ' + type ">
       <el-checkbox disabled :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
       ></el-checkbox>
       <div class="pc-star" v-if="showStar">
@@ -46,7 +46,7 @@
               <el-skeleton animated>
                 <template #template>
                   <el-skeleton-item variant="text"
-                                    style="width: 180px;margin-right: 15px;height: 1rem;margin-bottom: 4px;"/>
+                                    style="width: 180px;margin-right: 5px;height: 1rem;margin-bottom: 4px;"/>
                 </template>
               </el-skeleton>
             </div>
@@ -54,7 +54,7 @@
               <el-skeleton animated>
                 <template #template>
                   <el-skeleton-item variant="text"
-                                    style="width: 180px;margin-right: 15px;height: 1rem;margin-bottom: 4px;"/>
+                                    style="width: 180px;margin-right: 5px;height: 1rem;margin-bottom: 4px;"/>
                 </template>
               </el-skeleton>
             </div>
@@ -67,7 +67,7 @@
       <div class="email-right-skeleton" :style="showUserInfo ? 'align-self: start;':''">
         <el-skeleton animated>
           <template #template>
-            <el-skeleton-item variant="text" style="width: 50px;margin-right: 15px;height: 1rem;"/>
+            <el-skeleton-item variant="text" style="width: 60px;margin-right: 15px;height: 1rem;"/>
           </template>
         </el-skeleton>
       </div>
@@ -113,6 +113,11 @@ import {Icon} from "@iconify/vue";
 .pc-star {
   display: flex;
   width: 40px;
+}
+
+:deep(.el-skeleton__item) {
+  position: relative;
+  top: 2px;
 }
 
 @media (max-width: 1366px) {

@@ -10,6 +10,7 @@
                :star-cancel="starCancel"
                @jump="jumpContent"
                :time-sort="params.timeSort"
+               :type="'send'"
   >
     <template #first>
       <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
@@ -71,7 +72,13 @@ function cancelStar(email) {
 }
 
 function getEmailList(emailId, size) {
-  return emailList(accountStore.currentAccountId, emailId, params.timeSort, size, 1)
+  const accountId =  accountStore.currentAccountId;
+  const allReceive = accountStore.currentAccount.allReceive;
+  return emailList(accountId, allReceive, emailId, params.timeSort, size, 1).then(data => {
+    data.latestEmail.reqAccountId = accountId;
+    data.latestEmail.allReceive = allReceive;
+    return data;
+  })
 }
 
 </script>

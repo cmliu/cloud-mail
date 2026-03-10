@@ -25,6 +25,10 @@ const userService = {
 
 		const userRow = await userService.selectById(c, userId);
 
+		if (!userRow) {
+			throw new BizError(t('authExpired'), 401);
+		}
+
 		const [account, roleRow, permKeys] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
@@ -35,13 +39,15 @@ const userService = {
 		user.userId = userRow.userId;
 		user.sendCount = userRow.sendCount;
 		user.email = userRow.email;
-		user.accountId = account.accountId;
+		user.account = account;
 		user.name = account.name;
 		user.permKeys = permKeys;
-		user.role = roleRow
+		user.role = roleRow;
+		user.type = userRow.type;
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
+			user.type = 0;
 		}
 
 		return user;
@@ -94,11 +100,11 @@ const userService = {
 	},
 
 	async physicsDelete(c, params) {
-		const { userId } = params
-		await accountService.physicsDeleteByUserIds(c, [userId])
-		await oauthService.deleteByUserId(c, userId);
-		await orm(c).delete(user).where(eq(user.userId, userId)).run();
-		await c.env.kv.delete(kvConst.AUTH_INFO + userId);
+		let { userIds } = params;
+		userIds = userIds.split(',').map(Number);
+		await accountService.physicsDeleteByUserIds(c, userIds);
+		await oauthService.deleteByUserIds(c, userIds);
+		await orm(c).delete(user).where(inArray(user.userId, userIds)).run();
 	},
 
 	async list(c, params) {
@@ -124,7 +130,7 @@ const userService = {
 
 
 		if (email) {
-			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${email + '%'}`);
+			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${'%'+ email + '%'}`);
 		}
 
 
@@ -244,6 +250,7 @@ const userService = {
 
 		const { password, userId } = params;
 		await this.resetPassword(c, { password }, userId);
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
 	async setStatus(c, params) {

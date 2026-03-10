@@ -5,11 +5,9 @@ import settingService from '../service/setting-service';
 import attService from '../service/att-service';
 import constant from '../const/constant';
 import fileUtils from '../utils/file-utils';
-import { emailConst, isDel, roleConst, settingConst } from '../const/entity-const';
+import { emailConst, isDel, settingConst } from '../const/entity-const';
 import emailUtils from '../utils/email-utils';
 import roleService from '../service/role-service';
-import verifyUtils from '../utils/verify-utils';
-import r2Service from '../service/r2-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 
@@ -56,50 +54,21 @@ export async function email(message, env, ctx) {
 		let userRow = {}
 
 		if (account) {
-			 userRow = await userService.selectById({ env: env }, account.userId);
+			 userRow = await userService.selectByIdIncludeDel({ env: env }, account.userId);
 		}
 
 		if (account && userRow.email !== env.admin) {
 
-			let { banEmail, banEmailType, availDomain } = await roleService.selectByUserId({ env: env }, account.userId);
+			let { banEmail, availDomain } = await roleService.selectByUserId({ env: env }, account.userId);
 
 			if (!roleService.hasAvailDomainPerm(availDomain, message.to)) {
-				message.setReject('Mailbox disabled');
+				message.setReject('The recipient is not authorized to use this domain.');
 				return;
 			}
 
-			banEmail = banEmail.split(',').filter(item => item !== '');
-
-
-			if (banEmail.includes('*')) {
-
-				if (!banEmailHandler(banEmailType, message, email)) return;
-
-			}
-
-			for (const item of banEmail) {
-
-				if (verifyUtils.isDomain(item)) {
-
-					const banDomain = item.toLowerCase();
-					const receiveDomain = emailUtils.getDomain(email.from.address.toLowerCase());
-
-					if (banDomain === receiveDomain) {
-
-						if (!banEmailHandler(banEmailType, message, email)) return;
-
-					}
-
-				} else {
-
-					if (item.toLowerCase() === email.from.address.toLowerCase()) {
-
-						if (!banEmailHandler(banEmailType, message, email)) return;
-
-					}
-
-				}
-
+			if(roleService.isBanEmail(banEmail, email.from.address)) {
+				message.setReject('The recipient is disabled from receiving emails.');
+				return;
 			}
 
 		}
@@ -153,7 +122,7 @@ export async function email(message, env, ctx) {
 		});
 
 		try {
-			if (attachments.length > 0 && await r2Service.hasOSS({ env })) {
+			if (attachments.length > 0) {
 				await attService.addAtt({ env }, attachments);
 			}
 		} catch (e) {
@@ -196,24 +165,7 @@ export async function email(message, env, ctx) {
 		}
 
 	} catch (e) {
-
 		console.error('邮件接收异常: ', e);
+		throw e
 	}
-}
-
-function banEmailHandler(banEmailType, message, email) {
-
-	if (banEmailType === roleConst.banEmailType.ALL) {
-		message.setReject('Mailbox disabled');
-		return false;
-	}
-
-	if (banEmailType === roleConst.banEmailType.CONTENT) {
-		email.html = 'The content has been deleted';
-		email.text = 'The content has been deleted';
-		email.attachments = [];
-	}
-
-	return true;
-
 }

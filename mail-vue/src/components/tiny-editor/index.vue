@@ -8,7 +8,6 @@
 <script setup>
 import {ref, onMounted, onBeforeUnmount, watch, nextTick, shallowRef, defineEmits, computed} from 'vue';
 import loading from "@/components/loading/index.vue";
-import {compressImage} from "@/utils/file-utils.js";
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
 import {useSettingStore} from '@/store/setting.js'
@@ -64,10 +63,6 @@ const language = computed(() => {
     return 'zh_CN'
   }
 
-  if (locale.value === 'zhTW') {
-    return 'zh_TW'
-  }
-
   return 'en'
 })
 
@@ -96,8 +91,8 @@ function initEditor() {
     statusbar: false,
     height: "100%",
     auto_focus: true,
-    relative_urls: false,  //阻止 img标签域名和网站域名相同 自动把链接转换相对路径
-    remove_script_host: false, // 阻止删除 URL 中的域名
+    //relative_urls: false,  //阻止 img标签域名和网站域名相同 自动把链接转换相对路径
+    //remove_script_host: false, // 阻止删除 URL 中的域名
     forced_root_block: 'div',
     skin: `${uiStore.dark ? 'oxide-dark' : 'oxide'}`,
     content_css: `/tinymce/css/index.css,${uiStore.dark ? 'dark' : 'default'}`,
@@ -144,7 +139,6 @@ function initEditor() {
 
       input.addEventListener('change', async (e) => {
         let file = e.target.files[0];
-        file = await compressImage(file);
         const reader = new FileReader();
         reader.onload = () => {
           const id = 'blobid' + (new Date()).getTime();

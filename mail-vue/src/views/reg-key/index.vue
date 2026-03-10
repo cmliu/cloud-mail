@@ -57,7 +57,7 @@
         </div>
       </div>
       <div class="empty" v-if="regKeyData.length === 0">
-        <el-empty v-if="!regKeyFirst" :image-size="isMobile ? 120 : 0" :description="$t('noCodeFound')"/>
+        <el-empty v-if="!regKeyFirst" :image-size="isMobile ? 120 : null" :description="$t('noCodeFound')"/>
       </div>
     </el-scrollbar>
     <el-dialog v-model="showAdd" :title="$t('addRegKey')">

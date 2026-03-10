@@ -93,7 +93,7 @@ function setName() {
 
   userStore.user.name = accountName.value
 
-  accountSetName(userStore.user.accountId,name).then(() => {
+  accountSetName(userStore.user.account.accountId,name).then(() => {
     ElMessage({
       message: t('saveSuccessMsg'),
       type: 'success',

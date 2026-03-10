@@ -13,6 +13,10 @@ export function cvtR2Url(key) {
 
     let domain = settings.r2Domain
 
+    if (!domain) {
+        return key;
+    }
+
     if (!domain.startsWith('http')) {
         return 'https://' + domain + '/' + key
     }
@@ -26,7 +30,7 @@ export function cvtR2Url(key) {
 export function toOssDomain(domain) {
 
     if (!domain) {
-        return null
+        return ''
     }
 
     if (!domain.startsWith('http')) {

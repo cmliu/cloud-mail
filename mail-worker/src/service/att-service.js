@@ -82,17 +82,28 @@ const attService = {
 			}
 
 			//邮件正文站内图片转cid附件
-			if (src && src.startsWith(domainUtils.toOssDomain(r2Domain))) {
+			if (src && (src.startsWith(domainUtils.toOssDomain(r2Domain)) || src.startsWith('attachments/'))) {
 
 				const cid = uuidv4().replace(/-/g, '')
 				img.setAttribute('src', 'cid:' + cid);
 
 				const attData = {};
-				attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
-				attData.path = src;
+
+				if (src.startsWith(domainUtils.toOssDomain(r2Domain))) {
+					attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
+					attData.path = src;
+				}
+
+				if (src.startsWith('attachments/')) {
+					const origin = new URL(c.req.url).origin;
+					attData.key = src;
+					attData.path = origin + '/' + src;
+				}
+
 				attData.contentId = cid;
 				attData.type = attConst.type.EMBED;
 				imageDataList.push(attData);
+
 			}
 
 			const hasInlineWidth = img.hasAttribute('width');
@@ -160,11 +171,15 @@ const attService = {
 			attData.emailId = emailId;
 			attData.accountId = accountId;
 			attData.type = attConst.type.EMBED;
+			if (!attData.buff) {
+				continue;
+			}
 			await r2Service.putObj(c, attData.key, attData.buff, {
 				contentType: attData.mimeType,
 				cacheControl: `max-age=259200`,
 				contentDisposition: `inline;filename=${attData.filename}`
 			});
+			delete attData.buff;
 		}
 
 		await orm(c).insert(att).values(attDataList).run();

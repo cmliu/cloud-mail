@@ -1,7 +1,7 @@
 import BizError from "../error/biz-error";
 import orm from "../entity/orm";
 import {oauth} from "../entity/oauth";
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import userService from "./user-service";
 import loginService from "./login-service";
 import cryptoUtils from "../utils/crypto-utils";
@@ -102,7 +102,11 @@ const oauthService = {
 	},
 
 	async deleteByUserId(c, userId) {
-		await orm(c).delete(oauth).where(eq(oauth.userId, userId)).run();
+		await this.deleteByUserIds(c, [userId]);
+	},
+
+	async deleteByUserIds(c, userIds) {
+		await orm(c).delete(oauth).where(inArray(oauth.userId, userIds)).run();
 	},
 
 	//定时任务凌晨清除未绑定邮箱的oauth用户

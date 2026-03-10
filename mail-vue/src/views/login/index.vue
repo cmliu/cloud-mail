@@ -390,10 +390,10 @@ const submit = () => {
 }
 
 async function saveToken(token) {
-  console.log(token)
   localStorage.setItem('token', token)
   const user = await loginUserInfo();
-  accountStore.currentAccountId = user.accountId;
+  accountStore.currentAccountId = user.account.accountId;
+  accountStore.currentAccount = user.account;
   userStore.user = user;
   const routers = permsToRouter(user.permKeys);
   routers.forEach(routerData => {

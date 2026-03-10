@@ -77,10 +77,10 @@ const telegramService = {
 					})
 				});
 				if (!res.ok) {
-					console.error(`转发 Telegram 失败: chatId=${chatId}, 状态码=${res.status}`);
+					console.error(`转发 Telegram 失败 status: ${res.status} response: ${await res.text()}`);
 				}
 			} catch (e) {
-				console.error(`转发 Telegram 失败: chatId=${chatId}`, e.message);
+				console.error(`转发 Telegram 失败:`, e.message);
 			}
 		}));
 

@@ -18,8 +18,8 @@ export function userSetType(params) {
 }
 
 
-export function userDelete(userId) {
-    return http.delete('/user/delete', {params:{userId}})
+export function userDelete(userIds) {
+    return http.delete('/user/delete', {params:{userIds: userIds + ''}})
 }
 
 export function userAdd(form) {

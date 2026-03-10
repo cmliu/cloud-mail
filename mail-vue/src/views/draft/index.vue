@@ -1,7 +1,6 @@
 <template>
   <emailScroll ref="scroll"
                :allow-star="false"
-               :cancel-success="cancelStar"
                :getEmailList="getEmailList"
                :emailDelete="emailDelete"
                :star-add="starAdd"
@@ -15,7 +14,7 @@
                :type="'draft'"
   >
     <template #name="props">
-      <span class="send-email">{{ props.email.receiveEmail.join(',') || '(' + $t('noRecipient') + ')' }}</span>
+      <span class="send-email">{{ props.email.receiveEmail?.join(',') || '(' + $t('noRecipient') + ')' }}</span>
     </template>
     <template #subject="props">
       {{ props.email.subject || '(' + $t('noSubject') + ')' }}
@@ -27,8 +26,7 @@
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailDelete} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {useEmailStore} from "@/store/email.js";
-import {defineOptions, onMounted, ref, watch, toRaw} from "vue";
+import {defineOptions, ref, watch, toRaw} from "vue";
 import {useUiStore} from "@/store/ui.js";
 import {userDraftStore} from "@/store/draft.js";
 import db from "@/db/db.js"
@@ -40,7 +38,6 @@ defineOptions({
 const draftStore = userDraftStore();
 const uiStore = useUiStore();
 const scroll = ref({})
-const emailStore = useEmailStore();
 
 watch(() => draftStore.setDraft, async () => {
 
@@ -68,6 +65,7 @@ watch(() => draftStore.setDraft, async () => {
 watch(() => draftStore.refreshList, async () => {
   const {list} = await getEmailList();
     scroll.value.emailList.length = 0
+    scroll.value.handleList(list);
     scroll.value.emailList.push(...list)
 })
 
@@ -89,15 +87,6 @@ async function jumpContent(email) {
   email.attachments = att.attachments
   uiStore.writerRef.openDraft(email);
 }
-
-function cancelStar(email) {
-  emailStore.cancelStarEmailId = email.emailId
-  scroll.value.deleteEmail([email.emailId])
-}
-
-onMounted(() => {
-  emailStore.starScroll = scroll
-})
 
 </script>
 <style>

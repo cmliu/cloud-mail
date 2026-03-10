@@ -10,8 +10,11 @@
                  show-status
                  actionLeft="4px"
                  :show-account-icon="false"
+                 :time-sort="params.timeSort"
+                 :item-height="65"
                  @jump="jumpContent"
                  @refresh-before="refreshBefore"
+                 @right-search="rightSearch"
                  :type="'all-email'"
 
     >
@@ -87,30 +90,40 @@
 <script setup>
 import {starAdd, starCancel} from "@/request/star.js";
 import emailScroll from "@/components/email-scroll/index.vue"
-import {computed, defineOptions, reactive, ref, watch} from "vue";
+import {computed, defineOptions, reactive, ref, watch, onMounted} from "vue";
 import {useEmailStore} from "@/store/email.js";
 import {
   allEmailList,
   allEmailDelete,
-  allEmailBatchDelete
+  allEmailBatchDelete,
+  allEmailLatest
 } from "@/request/all-email.js";
 import {Icon} from "@iconify/vue";
 import router from "@/router/index.js";
 import {useI18n} from 'vue-i18n';
 import {toUtc} from "@/utils/day.js";
+import {sleep} from "@/utils/time-utils.js";
+import {useSettingStore} from "@/store/setting.js";
+import { useRoute } from 'vue-router'
 
 defineOptions({
   name: 'all-email'
 })
 
+const route = useRoute()
 const {t} = useI18n();
 const emailStore = useEmailStore();
+const settingStore = useSettingStore();
 const clearTime = ref('')
 const sysEmailScroll = ref({})
 const searchValue = ref('')
 const mySelect = ref()
 const showBathDelete = ref(false)
 const clearLoading = ref(false)
+
+onMounted(() => {
+  latest();
+})
 
 const openSelect = () => {
   mySelect.value.toggleMenu()
@@ -191,7 +204,7 @@ function batchDelete() {
   }
 
   ElMessageBox.confirm(
-      t('delAllEmailConfirm'),
+      t('delAllConfirm'),
       {
         confirmButtonText: t('confirm'),
         cancelButtonText: t('cancel'),
@@ -212,6 +225,12 @@ function batchDelete() {
       clearLoading.value = false
     })
   })
+}
+
+function rightSearch(type, value) {
+  params.searchType = type;
+  searchValue.value = value;
+  search();
 }
 
 function refreshBefore() {
@@ -272,6 +291,69 @@ function jumpContent(email) {
 function getEmailList(emailId, size) {
   return allEmailList({emailId, size, ...params})
 }
+
+async function latest() {
+
+  while (true) {
+
+    let autoRefresh = settingStore.settings.autoRefresh;
+
+    await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+
+    const latestId = sysEmailScroll.value.latestEmail?.emailId
+
+    if (autoRefresh < 2) {
+      continue
+    }
+
+    if (!latestId && latestId !== 0) {
+      continue
+    }
+
+    if (route.name !== 'all-email') {
+      continue
+    }
+
+
+    if (params.type !== 'receive') {
+      continue
+    }
+
+    try {
+
+      const curTimeSort = params.timeSort
+      let list = await allEmailLatest(latestId)
+
+      if (list.length === 0) {
+        continue
+      }
+
+      if (params.type !== 'receive') {
+        continue
+      }
+
+      // 确保回来之后条件没变
+      if (params.timeSort !== curTimeSort) {
+        continue
+      }
+
+      for (let email of list) {
+
+        sysEmailScroll.value.addItem(email)
+        await sleep(50)
+
+      }
+
+    } catch (e) {
+      if (e.code === 401 || e.code === 403) {
+        settingStore.settings.autoRefresh = 0;
+      }
+      console.error(e)
+    }
+
+  }
+}
+
 </script>
 <style>
 
@@ -397,7 +479,7 @@ function getEmailList(emailId, size) {
 }
 
 .clear {
-  @media (max-width: 409px) {
+  @media (max-width: 419px) {
     position: absolute;
     top: 41px;
     left: 242px;
@@ -405,7 +487,7 @@ function getEmailList(emailId, size) {
 }
 
 :deep(.reload) {
-  @media (max-width: 409px) {
+  @media (max-width: 419px) {
     position: absolute;
     top: 42px;
     left: 208px;
@@ -413,10 +495,16 @@ function getEmailList(emailId, size) {
 }
 
 :deep(.delete) {
-  @media (max-width: 443px) {
+  @media (max-width: 456px) {
     position: absolute;
     top: 43px;
-    left: 284px;
+    left: 294px;
+  }
+
+  @media (max-width: 419px) {
+    position: absolute;
+    top: 43px;
+    left: 282px;
   }
 }
 </style>

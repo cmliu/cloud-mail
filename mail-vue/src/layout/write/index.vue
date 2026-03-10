@@ -15,13 +15,13 @@
         </div>
       </div>
       <div class="container">
-        <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail"
-                      :placeholder="ruleEmailsInputDesc">
+        <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
           <template #prefix>
             <div class="item-title" >{{ $t('recipient') }}</div>
             <el-select
                 ref="mySelect"
-                class="select"
+                class="write-select"
+                popper-class="write-select"
                 :show-arrow="false"
                 :no-match-text="' '"
                 :no-data-text="' '"
@@ -33,22 +33,17 @@
                   :key="item"
                   :label="item"
                   :value="item"
+                  style="color: #999896;"
               />
             </el-select>
           </template>
           <template #suffix>
-            <div style="display: flex;">
+            <div style="display: flex;margin-right: 3px;">
               <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
             </div>
-            <span class="distribute" :class="form.manyType ? 'checked' : ''"
-                  @click.stop="checkDistribute">{{ $t('sendSeparately') }}</span>
           </template>
         </el-input-tag>
-        <el-input v-model="form.subject" :placeholder="$t('subjectInputDesc')">
-          <template #prefix>
-            <div class="item-title">{{ $t('subject') }}</div>
-          </template>
-        </el-input>
+        <el-input v-model="form.subject" :placeholder="t('subject')" />
         <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
         <div class="button-item">
           <div class="att-add" @click="chooseFile">
@@ -68,6 +63,7 @@
           </div>
           <div>
             <el-button type="primary" @click="sendEmail" v-if="form.sendType === 'reply'">{{ $t('reply') }}</el-button>
+            <el-button type="primary" @click="sendEmail" v-else-if="form.sendType === 'forward'">{{ $t('forward') }}</el-button>
             <el-button type="primary" @click="sendEmail" v-else>{{ $t('send') }}</el-button>
           </div>
         </div>
@@ -116,10 +112,13 @@ import {useWriterStore} from "@/store/writer.js";
 import db from "@/db/db.js";
 import dayjs from "dayjs";
 import {useI18n} from "vue-i18n";
+import router from "@/router/index.js";
+import {ElMessageBox} from "element-plus";
 
 defineExpose({
   open,
   openReply,
+  openForward,
   openDraft
 })
 
@@ -140,7 +139,6 @@ const contactsTabRef = ref({})
 const showContacts = ref(false)
 const mySelect = ref()
 let selectStatus = false
-const ruleEmailsInputDesc = ref(t('ruleEmailsInputDesc'))
 const backReply = reactive({
   receiveEmail: [],
   subject: '',
@@ -151,7 +149,6 @@ const form = reactive({
   sendEmail: '',
   receiveEmail: [],
   accountId: -1,
-  manyType: null,
   name: '',
   subject: '',
   content: '',
@@ -215,7 +212,6 @@ function selectChange(value) {
 
 function selectStatusChange(status) {
   selectStatus = status
-  ruleEmailsInputDesc.value = status ? '' : ruleEmailsInputDesc.value = t('ruleEmailsInputDesc')
 }
 
 const openSelect = () => {
@@ -254,10 +250,6 @@ function addTagChange(val) {
   if (selectStatus && has) openSelect()
 }
 
-function checkDistribute() {
-  form.manyType = form.manyType ? null : 'divide'
-}
-
 function clearContent() {
   ElMessageBox.confirm(t('clearContentConfirm'), {
     confirmButtonText: t('confirm'),
@@ -276,25 +268,23 @@ function delAtt(index) {
 function chooseFile() {
   const doc = document.createElement("input")
   doc.setAttribute("type", "file")
+  doc.multiple = true;
   doc.click()
   doc.onchange = async (e) => {
 
-    const file = e.target.files[0]
-    const size = file.size
-    const filename = file.name
-    const contentType = file.type
+    const fileList = e.target.files;
 
-    const TotalSize = form.attachments.reduce((acc, item) => acc + item.size, 0);
-    if ((TotalSize + size) > 29360128) {
-      ElMessage({
-        message: t('attLimitMsg'),
-        type: 'error',
-        plain: true,
-      })
-      return
+    for (const file of fileList) {
+
+      const size = file.size
+      const filename = file.name
+      const contentType = file.type
+
+      const content = await fileToBase64(file)
+      form.attachments.push({content, filename, size, contentType})
+
     }
-    const content = await fileToBase64(file)
-    form.attachments.push({content, filename, size, contentType})
+
   }
 }
 
@@ -316,6 +306,10 @@ async function sendEmail() {
       plain: true,
     })
     return
+  }
+
+  if (!form.content) {
+    form.content = editor.value.getContent();
   }
 
   if (!form.content) {
@@ -392,6 +386,10 @@ async function sendEmail() {
       message: h('span', {style: 'color: teal'}, e.message),
       position: 'bottom-right'
     })
+    if (e.code === 401) {
+      localStorage.removeItem('token');
+      router.replace('/login');
+    }
     show.value = true
     addRecipientRecord();
   }).finally(() => {
@@ -435,6 +433,32 @@ function focusChange() {
   if (selectStatus) openSelect()
 }
 
+function openForward(email) {
+  resetForm();
+
+  email.subject = email.subject || ''
+
+  form.subject = email.subject
+  form.sendType = 'forward'
+
+  defValue.value = ''
+
+  setTimeout(() => {
+    defValue.value = `
+      ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
+    `
+    open()
+
+    nextTick(() => {
+      backReply.content = editor.value.getContent()
+      backReply.subject = form.subject
+      backReply.receiveEmail = form.receiveEmail
+      backReply.sendType = form.sendType
+    })
+
+  });
+}
+
 function openReply(email) {
 
   resetForm();
@@ -442,7 +466,11 @@ function openReply(email) {
   email.subject = email.subject || ''
 
   form.receiveEmail.push(email.sendEmail)
-  form.subject = (email.subject.startsWith('Re:') || email.subject.startsWith('回复：')) ? email.subject : 'Re: ' + email.subject
+  form.subject = (
+      email.subject.startsWith('Re:') ||
+      email.subject.startsWith('Re：') ||
+      email.subject.startsWith('回复：') ||
+      email.subject.startsWith('回复:')) ? email.subject : 'Re: ' + email.subject
   form.sendType = 'reply'
   form.emailId = email.emailId
 
@@ -481,7 +509,7 @@ function formatImage(content) {
 function open() {
   if (!accountStore.currentAccount.email) {
     form.sendEmail = userStore.user.email;
-    form.accountId = userStore.user.accountId;
+    form.accountId = userStore.user.account.accountId;
     form.name = userStore.user.name;
   } else {
     form.sendEmail = accountStore.currentAccount.email;
@@ -518,6 +546,10 @@ function close() {
 
   if (selectStatus) openSelect();
 
+  if (!form.content) {
+    form.content = editor.value.getContent();
+  }
+
   if (form.draftId) {
     draftStore.setDraft = {...toRaw(form)}
     show.value = false
@@ -531,10 +563,13 @@ function close() {
     return;
   }
 
-  if (backReply.sendType === 'reply') {
+  if (backReply.sendType === 'reply' || backReply.sendType === 'forward') {
     let subjectFlag = form.subject === backReply.subject
     let contentFlag = editor.value.getContent() === backReply.content
     let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === backReply.receiveEmail[0]
+    if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
+      receiveFlag = true;
+    }
     if (subjectFlag && contentFlag && receiveFlag) {
       resetForm();
       close()
@@ -548,7 +583,7 @@ function close() {
     type: 'warning',
     distinguishCancelAndClose: true
   }).then(async () => {
-    const formData = {...toRaw(form)}
+    const formData = {...toRaw(form)};
     delete formData.draftId
     delete formData.attachments
     formData.createTime = dayjs().utc().format('YYYY-MM-DD HH:mm:ss');
@@ -556,7 +591,9 @@ function close() {
     db.value.att.add({draftId, attachments: toRaw(form.attachments)})
     draftStore.refreshList++
     show.value = false
-    resetForm()
+    await nextTick(() => {
+      resetForm()
+    })
   }).catch((action) => {
     if (action === 'cancel') {
       show.value = false
@@ -567,7 +604,18 @@ function close() {
 }
 
 </script>
+<style>
+.write-select .el-select-dropdown__list {
+  padding: 4px 4px !important;
+}
+.write-select .el-select-dropdown__item {
+  padding: 0 10px 0 10px;
+}
 
+.write-select .el-select-dropdown {
+  min-width: 0 !important;
+}
+</style>
 <style scoped lang="scss">
 .send {
   position: fixed;
@@ -646,21 +694,6 @@ function close() {
       grid-template-rows: auto auto 1fr auto;
       gap: 15px;
 
-      .distribute {
-        color: var(--el-color-info);
-        background: var(--el-color-info-light-9);
-        border: var(--el-color-info-light-8);
-        border-radius: 4px;
-        font-size: 12px;
-        padding: 0 5px;
-      }
-
-      .distribute.checked {
-        background: var(--el-color-primary-light-9);
-        color: var(--el-color-primary) !important;
-        border-radius: 4px;
-      }
-
       .item-title {
       }
 
@@ -736,7 +769,7 @@ function close() {
   color: var(--regular-text-color)
 }
 
-.select {
+.write-select {
   position: absolute;
   width: 300px;
   left: 60px;

@@ -174,6 +174,50 @@ const roleService = {
 
 	selectByName(c, roleName) {
 		return orm(c).select().from(role).where(eq(role.name, roleName)).get();
+	},
+
+	selectByUserIds(c, userIds) {
+
+		if (!userIds && userIds.length === 0) {
+			return [];
+		}
+
+		return orm(c).select({ ...role, userId: user.userId }).from(user).leftJoin(role, eq(role.roleId, user.type)).where(inArray(user.userId, userIds)).all();
+
+	},
+
+	isBanEmail(banEmail, fromEmail) {
+
+		banEmail = banEmail.split(',').filter(item => item !== '');
+
+		if (banEmail.includes('*')) {
+			return true;
+		}
+
+		for (const item of banEmail) {
+
+			if (verifyUtils.isDomain(item)) {
+
+				const banDomain = item.toLowerCase();
+				const receiveDomain = emailUtils.getDomain(fromEmail.toLowerCase());
+
+				if (banDomain === receiveDomain) {
+					return true;
+				}
+
+			} else {
+
+				if (item.toLowerCase() === fromEmail.toLowerCase()) {
+
+					return true;
+
+				}
+
+			}
+
+		}
+
+		return false;
 	}
 };
 

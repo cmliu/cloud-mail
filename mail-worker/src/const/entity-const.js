@@ -7,6 +7,13 @@ export const userConst = {
 	}
 }
 
+export const accountConst = {
+	allReceive: {
+		CLOSE: 0,
+		OPEN: 1
+	}
+}
+
 export const roleConst = {
 	isDefault: {
 		CLOSE: 0,
@@ -120,6 +127,10 @@ export const settingConst = {
 	forcePathStyle: {
 		OPEN: 0,
 		CLOSE: 1
+	},
+	authRefresh: {
+		OPEN: 1,
+		CLOSE: 0
 	}
 }
 

@@ -71,13 +71,8 @@
                   autocomplete="off"/>
         <el-input class="dialog-input" v-model="form.description" :maxlength="30" type="text"
                   :placeholder="$t('description')" autocomplete="off"/>
-        <el-input-tag class="dialog-input-tag" tag-type="warning"
-                      :class="form.banEmail.length === 0 ? 'dialog-input' : '' " v-model="form.banEmail"
+        <el-input-tag class="dialog-input" tag-type="warning" v-model="form.banEmail"
                       @add-tag="banEmailAddTag" type="text" :placeholder="$t('emailInterception')" autocomplete="off"/>
-        <el-radio-group class="dialog-radio" v-model="form.banEmailType" v-if="form.banEmail.length > 0">
-          <el-radio :label="$t('removeAll')" :value="0"/>
-          <el-radio :label="$t('removeContent')" :value="1"/>
-        </el-radio-group>
         <el-select
             class="dialog-input"
             v-model="form.availDomain"
@@ -121,13 +116,14 @@
             <div>
               <span>{{ node.label }}</span>
               <span class="send-num" v-if="data.permKey === 'email:send'" @click.stop>
-                <el-input-number v-model="form.sendCount" controls-position="right" :min="0" :max="99999" size="small"
+                <el-input-number v-if="form.sendType === 'day' || form.sendType === 'count'" v-model="form.sendCount" controls-position="right" :min="0" :max="99999" size="small"
                                  :placeholder="$t('total')">
                 </el-input-number>
                   <el-select v-model="form.sendType" placeholder="Select" size="small"
-                             style="width: 65px;margin-left: 5px;">
+                             :style="`width: ${ locale === 'zh' ? 65 : 85 }px;margin-left: 5px;`">
                     <el-option :label="$t('total')" value="count"/>
                     <el-option :label="$t('daily')" value="day"/>
+                    <el-option :label="$t('internal')" value="internal"/>
                     <el-option :label="$t('btnBan')" value="ban"/>
                   </el-select>
               </span>
@@ -186,7 +182,6 @@ const form = reactive({
   name: null,
   description: null,
   banEmail: [],
-  banEmailType: 0,
   sendType: 'count',
   sendCount: 0,
   accountCount: 0,
@@ -335,7 +330,6 @@ function resetForm() {
   form.sendCount = 0
   form.accountCount = 0
   form.banEmail = []
-  form.banEmailType = 0
   form.availDomain = []
   tree.value.setCheckedKeys([])
 }
@@ -352,7 +346,6 @@ function openRoleSet(role) {
   form.sendCount = role.sendCount
   form.accountCount = role.accountCount
   form.banEmail = role.banEmail
-  form.banEmailType = role.banEmailType
   form.availDomain = role.availDomain
   nextTick(() => {
     tree.value.setCheckedKeys(role.permIds)
@@ -525,14 +518,6 @@ window.onresize = () => {
 .dialog-box {
   .dialog-input {
     margin-bottom: 15px !important;
-  }
-
-  .dialog-radio {
-    margin-top: 5px;
-    margin-bottom: 5px;
-  }
-
-  .dialog-input-tag {
   }
 }
 

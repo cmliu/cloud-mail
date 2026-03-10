@@ -6,14 +6,15 @@
     </div>
     <el-scrollbar class="scrollbar" ref="scrollbarRef">
       <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
-        <el-card class="item" :class="itemBg(item.accountId)" v-for="item in accounts" :key="item.accountId"
+        <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
           <div class="account">
             {{ item.email }}
           </div>
           <div class="opt">
             <div class="send-email" @click.stop>
-              <Icon icon="eva:email-fill" width="22" height="22" color="#fccb1a"/>
+              <Icon @click="setAllReceive(item)" v-if="!item.allReceive" icon="eva:email-fill" width="22" height="22" color="#fccb1a"/>
+              <Icon @click="setAllReceive(item)" v-else icon="flat-color-icons:folder" width="22" height="22" color="#23c4f1" />
             </div>
             <div class="settings" @click.stop>
               <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
@@ -23,9 +24,9 @@
                 <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="item.accountId !== userStore.user.accountId && hasPerm('account:delete')"
+                    <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
                                       @click="remove(item)">{{ $t('delete') }}
                     </el-dropdown-item>
                   </el-dropdown-menu>
@@ -127,19 +128,29 @@
 <script setup>
 import {Icon} from "@iconify/vue";
 import {nextTick, reactive, ref, watch} from "vue";
-import {accountList, accountAdd, accountDelete, accountSetName} from "@/request/account.js";
+import {
+  accountList,
+  accountAdd,
+  accountDelete,
+  accountSetName,
+  accountSetAllReceive,
+  accountSetAsTop
+} from "@/request/account.js";
 import {sleep} from "@/utils/time-utils.js"
 import {isEmail} from "@/utils/verify-utils.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
+import {useEmailStore} from "@/store/email.js";
 import {useUserStore} from "@/store/user.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
+import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
 
 const {t} = useI18n();
 const userStore = useUserStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
+const emailStore = useEmailStore();
 const showAdd = ref(false)
 const addLoading = ref(false);
 const domainList = settingStore.domainList
@@ -165,8 +176,7 @@ const addForm = reactive({
 })
 let skeletonRows = 10
 const queryParams = {
-  accountId: 0,
-  size: 20
+  size: 30
 }
 
 const mySelect = ref()
@@ -234,7 +244,7 @@ function setName() {
     account.name = name
     setNameShow.value = false
 
-    if (account.accountId === userStore.user.accountId) {
+    if (account.accountId === userStore.user.account.accountId) {
       userStore.user.name = name
     }
 
@@ -254,13 +264,37 @@ function openSetName(accountItem) {
   setNameShow.value = true
 }
 
+function setAllReceive(account) {
+  let allReceiveAccount = accounts.find(account => account.allReceive === AccountAllReceiveEnum.ENABLED);
+  if (allReceiveAccount && allReceiveAccount.accountId !== account.accountId) allReceiveAccount.allReceive = AccountAllReceiveEnum.DISABLED;
+  account.allReceive = account.allReceive === AccountAllReceiveEnum.DISABLED ? AccountAllReceiveEnum.ENABLED : AccountAllReceiveEnum.DISABLED;
+  accountSetAllReceive(account.accountId).catch(() => {
+    account.allReceive = account.allReceive === AccountAllReceiveEnum.DISABLED ? AccountAllReceiveEnum.ENABLED : AccountAllReceiveEnum.DISABLED;
+    if (allReceiveAccount) allReceiveAccount.allReceive = AccountAllReceiveEnum.ENABLED;
+  }).then(() => {
+    if (account.allReceive === AccountAllReceiveEnum.ENABLED) {
+      ElMessage({
+        message: t('setSuccess'),
+        type: 'success',
+        plain: true,
+      })
+    }
+    changeAccount(account);
+    emailStore.emailScroll?.refreshList();
+    emailStore.sendScroll?.refreshList();
+  })
+}
+
+
 function showNullSetting(item) {
-  return !hasPerm('email:send') && !(item.accountId !== userStore.user.accountId && hasPerm('account:delete'))
+  return !hasPerm('email:send') && !(item.accountId !== userStore.user.account.accountId && hasPerm('account:delete'))
 }
 
 function itemBg(accountId) {
   return accountStore.currentAccountId === accountId ? 'item-choose' : ''
 }
+
+
 
 function remove(account) {
   ElMessageBox.confirm(t('delConfirm', {msg: account.email}), {
@@ -291,6 +325,7 @@ function refresh() {
   followLoading.value = false
   noLoading.value = false
   queryParams.accountId = 0
+  queryParams.lastSort = null
   getSkeletonRows();
   scrollbarRef.value.setScrollTop(0)
   accounts.splice(0, accounts.length)
@@ -307,6 +342,20 @@ function add() {
   setTimeout(() => {
     addRef.value.focus()
   }, 100)
+}
+
+function setAsTop(account, index) {
+  accountSetAsTop(account.accountId).then(() => {
+    ElMessage({
+      message: t('setSuccess'),
+      type: 'success',
+      plain: true,
+    })
+
+    const [item] = accounts.splice(index, 1);
+    accounts.splice(1, 0, item);
+
+  });
 }
 
 async function copyAccount(account) {
@@ -339,7 +388,10 @@ function getAccountList() {
 
   let start = Date.now();
 
-  accountList(queryParams.accountId, queryParams.size).then(async list => {
+  const accountId = accounts.length > 0 ? accounts.at(-1).accountId : 0;
+  const lastSort = accounts.length > 0 ? accounts.at(-1).sort : null;
+
+  accountList(accountId, queryParams.size, lastSort).then(async list => {
 
     let end = Date.now();
     let duration = end - start;
@@ -351,9 +403,9 @@ function getAccountList() {
       noLoading.value = true
     }
     if (accounts.length === 0) {
-      accountStore.currentAccount = list[0].accountId
+      accountStore.currentAccount = list[0]
     }
-    queryParams.accountId = list.at(-1).accountId
+
     accounts.push(...list)
 
     loading.value = false

@@ -6,17 +6,18 @@ const resendService = {
 
 	async webhooks(c, body) {
 
-		const params = {}
-		console.error(body)
+		const params = {
+			resendEmailId: body.data.email_id,
+			status: emailConst.status.SENT
+		}
+
 		if (body.type === 'email.delivered') {
 			params.status = emailConst.status.DELIVERED
-			params.resendEmailId = body.data.email_id
 			params.message = null
 		}
 
 		if (body.type === 'email.complained') {
 			params.status = emailConst.status.COMPLAINED
-			params.resendEmailId = body.data.email_id
 			params.message = null
 		}
 
@@ -24,19 +25,16 @@ const resendService = {
 			let bounce = body.data.bounce
 			bounce = JSON.stringify(bounce);
 			params.status = emailConst.status.BOUNCED
-			params.resendEmailId = body.data.email_id
 			params.message = bounce
 		}
 
 		if (body.type === 'email.delivery_delayed') {
 			params.status = emailConst.status.DELAYED
-			params.resendEmailId = body.data.email_id
 			params.message = null
 		}
 
 		if (body.type === 'email.failed') {
 			params.status = emailConst.status.FAILED
-			params.resendEmailId = body.data.email_id
 			params.message = body.data.failed.reason
 		}
 

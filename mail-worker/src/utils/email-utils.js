@@ -14,13 +14,30 @@ const emailUtils = {
 		return parts.length === 2 ? parts[0] : '';
 	},
 
+	formatText(text) {
+		if (!text) return ''
+		return text
+			.split('\n')
+			.map(line => {
+				return line.replace(/[\u200B-\u200F\uFEFF\u034F\u200B-\u200F\u00A0\u3000\u00AD]/g, '')
+					.replace(/\s+/g, ' ')
+					.trim();
+			})
+			.join('\n')
+			.replace(/\n{3,}/g, '\n')
+			.trim();
+	},
+
 	htmlToText(content) {
 		if (!content) return ''
 		try {
-			const { document } = parseHTML(content);
+			const wrappedContent = content.includes('<body')
+				? content
+				: `<!DOCTYPE html><html><body>${content}</body></html>`;
+			const { document } = parseHTML(wrappedContent);
 			document.querySelectorAll('style, script, title').forEach(el => el.remove());
 			let text = document.body.innerText;
-			return text.trim();
+			return this.formatText(text);
 		} catch (e) {
 			console.error(e)
 			return ''

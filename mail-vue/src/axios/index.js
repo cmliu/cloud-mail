@@ -34,7 +34,7 @@ http.interceptors.response.use((res) => {
                     repeatNum: -4,
                 })
                 localStorage.removeItem('token')
-                router.push('/login')
+                router.replace('/login')
                 reject(data)
             } else if (data.code === 403) {
                 ElMessage({
